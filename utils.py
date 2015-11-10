@@ -4,7 +4,7 @@ import yaml
 from fuel.datasets import H5PYDataset
 from fuel.streams import DataStream
 from fuel.schemes import SequentialScheme, ShuffledScheme
-from fuel.transformers import Mapping
+from fuel.transformers import Mapping, Padding
 from blocks.extensions import saveload, predicates
 from blocks.extensions.training import TrackTheBest
 from blocks import main_loop
@@ -22,7 +22,7 @@ class MainLoop(main_loop.MainLoop):
 
 
 def transpose_stream(data):
-    return (data[0].T, data[1].T)
+    return tuple(array.T for array in data)
 
 
 def track_best(channel, save_path):
@@ -49,6 +49,7 @@ def get_stream(hdf5_file, which_set, batch_size=None):
         batch_size = dataset.num_examples
     stream = DataStream(dataset=dataset, iteration_scheme=ShuffledScheme(
         examples=dataset.num_examples, batch_size=batch_size))
+    stream = Padding(stream)
     # Required because Recurrent bricks receive as input [sequence, batch,
     # features]
     return Mapping(stream, transpose_stream)

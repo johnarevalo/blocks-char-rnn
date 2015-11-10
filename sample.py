@@ -8,12 +8,12 @@ import argparse
 import sys
 
 
-def sample(nchars, x_curr, predict, ix_to_char, temperature=1.0, seed=None):
+def sample(nchars, x_curr, x_mask, predict, ix_to_char, temperature=1.0, seed=None):
     if seed:
         numpy.random.seed(seed)
     sample_string = ''
     for _ in range(nchars):
-        probs = predict(x_curr).squeeze()[-1].astype('float64')
+        probs = predict(x_curr, x_mask).squeeze()[-1].astype('float64')
         if numpy.random.binomial(1, temperature) == 1:
             probs = probs / probs.sum()
             sample = numpy.random.multinomial(1, probs).nonzero()[0][0]
@@ -53,22 +53,25 @@ if __name__ == '__main__':
             [ch for ch in args.primetext if ch in char_to_ix.keys()])
         x_curr = numpy.expand_dims(
             numpy.array([char_to_ix[ch] for ch in primetext], dtype='uint8'), axis=1)
+        x_m = numpy.ones(x_curr.shape, dtype=theano.config.floatX)
     else:
+        sample_id = 0
         dev_stream = get_stream(hdf5_file, 'dev', batch_size)
-        x_curr, y_curr = dev_stream.get_epoch_iterator().next()
-        x_curr = x_curr[:, -1].reshape(seq_length, 1)
+        x_curr, x_m, y_curr, y_m = dev_stream.get_epoch_iterator().next()
+        x_curr = numpy.expand_dims(x_curr[:, sample_id], axis=1)
+        x_m = numpy.expand_dims(x_m[:, sample_id], axis=1)
 
     print 'Loading model from {0}...'.format(args.model)
     main_loop = load(args.model)
     print 'Model loaded. Building prediction function...'
     model = main_loop.model
-    y, x = model.inputs
+    y_mask, y, x_mask, x = model.inputs
     softmax = NDimensionalSoftmax()
     linear_output = [
         v for v in model.variables if v.name == 'linear_output'][0]
     y_hat = softmax.apply(linear_output, extra_ndim=1)
-    predict = theano.function([x], y_hat)
+    predict = theano.function([x, x_mask], y_hat)
 
     print 'Starting sampling'
-    sample_string = sample(args.length, x_curr, predict, ix_to_char,
+    sample_string = sample(args.length, x_curr, x_m, predict, ix_to_char,
                            seed=args.seed, temperature=args.temperature)

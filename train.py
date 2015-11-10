@@ -26,7 +26,10 @@ dev_stream = get_stream(hdf5_file, 'dev', batch_size)
 # MODEL
 x = tensor.matrix('features', dtype='uint8')
 y = tensor.matrix('targets', dtype='uint8')
-y_hat, cost = nn_fprop(x, y, vocab_size, hidden_size, num_layers, model)
+x_mask = tensor.matrix('features_mask')
+y_mask = tensor.matrix('targets_mask')
+
+y_hat, cost = nn_fprop(x, y, x_mask, y_mask, vocab_size, hidden_size, num_layers, model)
 
 # COST
 cg = ComputationGraph(cost)
@@ -63,7 +66,7 @@ if learning_rate_decay not in (0, 1):
     extensions.append(SharedVariableModifier(step_rules[0].learning_rate,
                                              lambda n, lr: numpy.cast[theano.config.floatX](learning_rate_decay * lr), after_epoch=True, after_batch=False))
 
-print 'number of parameters in the model: ' + str(tensor.sum([p.size for p in cg.parameters]).eval())
+print('number of parameters in the model: ' + str(tensor.sum([p.size for p in cg.parameters]).eval()))
 # Finally build the main loop and train the model
 main_loop = MainLoop(data_stream=train_stream, algorithm=algorithm,
                      model=Model(cost), extensions=extensions)

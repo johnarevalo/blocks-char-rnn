@@ -10,7 +10,6 @@ config['dropout'] = 0
 
 config['model'] = 'gru'  # 'rnn', 'gru' or 'lstm'
 config['nepochs'] = 30  # number of full passes through the training data
-config['seq_length'] = 50  # number of chars in the sequence
 config['hdf5_file'] = 'input.hdf5'  # hdf5 file with Fuel format
 config['text_file'] = 'input.txt'  # raw input file
 config['train_size'] = 0.95  # fraction of data that goes into train set
