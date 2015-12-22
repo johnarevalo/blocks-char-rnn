@@ -12,23 +12,21 @@ import argparse
 import sys
 
 
-def sample(x_curr, predict, temperature=1.0):
+def sample(x_curr, states_values, fprop, temperature=1.0):
     '''
-    Propagate x_curr in the sequence and sample next element according to
+    Propagate x_curr sequence and sample next element according to
     temperature sampling.
-    Return: sample element and an array of hidden states produced by fprop.
+    Return: sampled element and a list of the hidden activations produced by fprop.
     '''
-    hiddens = predict(x_curr)
-    probs = hiddens.pop()
-    #Get prob. distribution of the last element in the last seq of the batch
-    probs = probs[-1,-1,:].astype('float64')
+    activations = fprop(x_curr, *states_values)
+    probs = activations.pop().astype('float64')
     if numpy.random.binomial(1, temperature) == 1:
         probs = probs / probs.sum()
         sample = numpy.random.multinomial(1, probs).nonzero()[0][0]
     else:
         sample = probs.argmax()
 
-    return sample, hiddens
+    return sample, activations
 
 if __name__ == '__main__':
     # Load config parameters
@@ -69,22 +67,26 @@ if __name__ == '__main__':
         extension.main_loop = main_loop
     main_loop._run_extensions('before_training')
     bin_model = main_loop.model
-    hiddens = []
-    initials = []
+    activations = []
+    initial_states = []
     for i in range(num_layers):
         brick = [b for b in bin_model.get_top_bricks() if b.name==model+str(i)][0]
-        hiddens.extend(VariableFilter(theano_name=brick.name+'_apply_states')(bin_model.variables))
-        hiddens.extend(VariableFilter(theano_name=brick.name+'_apply_cells')(cells))
-        initials.extend(VariableFilter(roles=[roles.INITIAL_STATE])(brick.parameters))
+        activations.extend(VariableFilter(theano_name=brick.name+'_apply_states')(bin_model.variables))
+        activations.extend(VariableFilter(theano_name=brick.name+'_apply_cells')(cells))
+        initial_states.extend(VariableFilter(roles=[roles.INITIAL_STATE])(brick.parameters))
 
-    predict = theano.function([x], hiddens + [y_hat])
+    #take activations of last element
+    activations = [act[-1].flatten() for act in activations]
+    states_as_params = [tensor.vector(dtype=initial.dtype) for initial in initial_states]
+    zip(initial_states, states_as_params)
+    #Get prob. distribution of the last element in the last seq of the batch
+    fprop = theano.function([x] + states_as_params, activations + [y_hat[-1, -1, :]], givens=zip(initial_states, states_as_params))
 
+    states_values = [initial.get_value() for initial in initial_states]
     sys.stdout.write('Starting sampling\n' + primetext)
     for _ in range(args.length):
-        idx, newinitials = sample(x_curr, predict, args.temperature)
+        idx, states_values = sample(x_curr, states_values, fprop, args.temperature)
         sys.stdout.write(ix_to_char[idx])
         x_curr = [[idx]]
-        for initial, newinitial in zip(initials, newinitials):
-           initial.set_value(newinitial[-1].flatten())
 
     sys.stdout.write('\n')
