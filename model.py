@@ -47,13 +47,14 @@ def lstm_layer(dim, h, n, x_mask):
     linear = Linear(input_dim=dim, output_dim=dim * 4, name='linear' + str(n))
     lstm = LSTM(dim=dim, name='lstm' + str(n))
     initialize([linear, lstm])
-    return lstm.apply(linear.apply(h), mask=x_mask)[0]
+    return lstm.apply(linear.apply(h), mask=x_mask)
 
 
 def nn_fprop(x, y, x_mask, y_mask, vocab_size, hidden_size, num_layers, model):
     lookup = LookupTable(length=vocab_size, dim=hidden_size)
     initialize([lookup])
     h = lookup.apply(x)
+    cells = []
     for i in range(num_layers):
         mask = x_mask if i == 0 else None
         if model == 'rnn':
@@ -61,5 +62,6 @@ def nn_fprop(x, y, x_mask, y_mask, vocab_size, hidden_size, num_layers, model):
         if model == 'gru':
             h = gru_layer(hidden_size, h, i, mask)
         if model == 'lstm':
-            h = lstm_layer(hidden_size, h, i, mask)
-    return softmax_layer(h, y, y_mask, vocab_size, hidden_size)
+            h, c = lstm_layer(hidden_size, h, i, mask)
+            cells.append(c)
+    return softmax_layer(h, y, y_mask, vocab_size, hidden_size) + (cells, )
