@@ -5,11 +5,10 @@ from blocks.model import Model
 from blocks.graph import ComputationGraph, apply_dropout
 from blocks.algorithms import StepClipping, GradientDescent, CompositeRule, RMSProp
 from blocks.filter import VariableFilter
-from blocks.extensions import FinishAfter, Timing, Printing
+from blocks.extensions import FinishAfter, Timing, Printing, saveload
 from blocks.extensions.training import SharedVariableModifier
 from blocks.extensions.monitoring import DataStreamMonitoring, TrainingDataMonitoring
 from blocks.monitoring import aggregation
-from blocks.extensions import saveload
 from utils import get_metadata, get_stream, track_best, MainLoop
 from model import nn_fprop
 from config import config
@@ -26,7 +25,7 @@ dev_stream = get_stream(hdf5_file, 'dev', batch_size)
 # MODEL
 x = tensor.matrix('features', dtype='uint8')
 y = tensor.matrix('targets', dtype='uint8')
-y_hat, cost = nn_fprop(x, y, vocab_size, hidden_size, num_layers, model)
+y_hat, cost, cells = nn_fprop(x, y, vocab_size, hidden_size, num_layers, model)
 
 # COST
 cg = ComputationGraph(cost)
