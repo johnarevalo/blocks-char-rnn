@@ -57,7 +57,7 @@ if __name__ == '__main__':
     x_curr = numpy.expand_dims(
         numpy.array([char_to_ix[ch] for ch in primetext], dtype='uint8'), axis=1)
 
-    print 'Loading model from {0}...'.format(args.model)
+    print('Loading model from {0}...'.format(args.model))
     x = tensor.matrix('features', dtype='uint8')
     y = tensor.matrix('targets', dtype='uint8')
     y_hat, cost, cells = nn_fprop(x, y, vocab_size, hidden_size, num_layers, model)
@@ -78,7 +78,6 @@ if __name__ == '__main__':
     #take activations of last element
     activations = [act[-1].flatten() for act in activations]
     states_as_params = [tensor.vector(dtype=initial.dtype) for initial in initial_states]
-    zip(initial_states, states_as_params)
     #Get prob. distribution of the last element in the last seq of the batch
     fprop = theano.function([x] + states_as_params, activations + [y_hat[-1, -1, :]], givens=zip(initial_states, states_as_params))
 
