@@ -3,7 +3,7 @@ import theano
 from theano import tensor
 from blocks import roles
 from blocks.model import Model
-from blocks.extensions import saveload
+from blocks.serialization import load_parameters
 from blocks.filter import VariableFilter
 from utils import get_metadata, MainLoop
 from config import config
@@ -61,11 +61,9 @@ if __name__ == '__main__':
     x = tensor.matrix('features', dtype='uint8')
     y = tensor.matrix('targets', dtype='uint8')
     y_hat, cost, cells = nn_fprop(x, y, vocab_size, hidden_size, num_layers, model)
-    main_loop = MainLoop(algorithm=None, data_stream=None, model=Model(cost),
-                         extensions=[saveload.Load(args.model)])
-    for extension in main_loop.extensions:
-        extension.main_loop = main_loop
-    main_loop._run_extensions('before_training')
+    main_loop = MainLoop(algorithm=None, data_stream=None, model=Model(cost))
+    with open(args.model) as f:
+        main_loop.model.set_parameter_values(load_parameters(f))
     bin_model = main_loop.model
     activations = []
     initial_states = []
